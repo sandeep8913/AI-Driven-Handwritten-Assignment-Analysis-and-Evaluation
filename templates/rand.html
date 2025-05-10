@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>OOP Assignment Generator</title>
+    <!-- Bootstrap 5 CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom CSS -->
+    <style>
+        body {
+            font-family: 'Poppins', Arial, sans-serif;
+            background: linear-gradient(135deg, #f6f6f6, #e3e3e3);
+            color: #333;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: #fff;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 1000px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #4A4A4A;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        th {
+            background: linear-gradient(135deg, #4caf50, #45a049);
+            color: #fff;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        tr:hover {
+            background: #eafaf1;
+            transition: 0.3s ease;
+        }
+
+        /* Custom button styling */
+        .generate-btn {
+            background: linear-gradient(135deg, #4CAF50, #45A049);
+            color: #fff;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 15px;
+        }
+
+        .generate-btn:hover {
+            background: linear-gradient(135deg, #45A049, #3e8e41);
+            box-shadow: 0 0 15px #4CAF50;
+        }
+
+        footer {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #555;
+        }
+
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>OOP Assignment Generator</h1>
+
+        <!-- Generate Button -->
+        <form action="/generate" method="post">
+            <button type="submit" class="generate-btn">Generate</button>
+        </form>
+
+        <!-- Display Data -->
+        <table class="table table-bordered table-hover table-striped mt-4">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Q1</th>
+                    <th>Q2</th>
+                    <th>Q3</th>
+                    <th>Q4</th>
+                    <th>Q5</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data %}
+                <tr>
+                    <td><strong>{{ row[0] }}</strong></td>
+                    <td>{{ row[2] }}</td>
+                    <td>{{ row[3] }}</td>
+                    <td>{{ row[4] }}</td>
+                    <td>{{ row[5] }}</td>
+                    <td>{{ row[6] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Send Emails Button -->
+        <form action="/send_emails" method="post">
+            <button type="submit" class="generate-btn send-btn">Send Emails</button>
+        </form>
+
+        <!-- Hidden div to store flash messages -->
+        <div id="flash-data" 
+        data-category="{{ (get_flashed_messages(with_categories=true) | first) if get_flashed_messages() else '' }}"
+
+             style="display: none;"></div>
+
+        <footer></footer>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const flashData = document.getElementById("flash-data");
+            const category = flashData.dataset.category;
+            const message = flashData.dataset.message;
+
+            if (message) {
+                alert(message);
+                if (category === "success") {
+                    const sendBtn = document.querySelector(".send-btn");
+                    if (sendBtn) {
+                        sendBtn.innerText = "Sent ✅";
+                        sendBtn.disabled = true; // Disable button after sending
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

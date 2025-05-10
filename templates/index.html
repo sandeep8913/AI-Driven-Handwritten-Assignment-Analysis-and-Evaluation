@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Assignment Upload Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="home-container">
+    <div class="login-card">
+      <h1>Welcome to Assignment Portal</h1>
+      <p>Please login to upload your assignment</p>
+      <form id="loginForm">
+        <input type="text" id="rollNumber" placeholder="Enter Roll Number" required />
+        <input type="password" id="password" placeholder="Enter Password" required />
+        <button type="submit">Login</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="upload-container" style="display: none;">
+    <h2>Upload Your Assignment</h2>
+    <input type="file" id="assignmentFile" accept=".pdf" required />
+    <button onclick="uploadAssignment()">Upload Assignment</button>
+  </div>
+
+  <div class="question-container" style="display: none;">
+    <h2>Your Assigned Questions</h2>
+    <ul id="questionList"></ul>
+  </div>
+  
+
+  <div class="loading-container" style="display: none;">
+    <h2>Evaluating...</h2>
+    <div class="spinner"></div>
+  </div>
+
+  <div class="success-container" style="display: none;">
+    <div class="checkmark-animation">✔</div>
+    <h2>Evaluation Successful!</h2>
+    <p>Your file has been evaluated successfully.</p>
+    <button onclick="location.reload()">Upload Another File</button>
+  </div>
+
+  <div class="score-container" style="display: none;">
+    <div class="score-box">
+      <h2>Your Score</h2>
+      <div id="scoreDetails" style="font-size: 18px; text-align: left; color: #333;"></div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async function(event) {
+      event.preventDefault();
+      const rollNumber = document.getElementById('rollNumber').value;
+      const password = document.getElementById('password').value;
+
+      const response = await fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rollNumber, password })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+  alert('Login Successful!');
+  document.querySelector('.home-container').style.display = 'none';
+  document.querySelector('.upload-container').style.display = 'flex';
+  document.querySelector('.question-container').style.display = 'flex';
+
+  const list = document.getElementById('questionList');
+  list.innerHTML = '';
+  data.questions.forEach((q, index) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<strong>Q${index + 1}:</strong> ${q}`;
+    li.style.marginBottom = '10px';
+    li.style.background = '#e0f7fa';
+    li.style.padding = '10px';
+    li.style.borderRadius = '8px';
+    li.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+    list.appendChild(li);
+  });
+}
+ else {
+        alert('Invalid Roll Number or Password');
+      }
+    });
+
+    async function uploadAssignment() {
+      const fileInput = document.getElementById('assignmentFile');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        alert('Please select a PDF file to upload.');
+        return;
+      }
+
+      document.querySelector('.upload-container').style.display = 'none';
+      document.querySelector('.question-container').style.display = 'none';
+      document.querySelector('.loading-container').style.display = 'flex';
+
+      const formData = new FormData();
+      formData.append('file', file);
+      let tot_score=0
+      try {
+        const response = await fetch('/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        document.querySelector('.loading-container').style.display = 'none';
+        document.querySelector('.success-container').style.display = 'flex';
+        document.querySelector('.score-container').style.display = 'flex';
+        
+
+        data.evaluation.forEach((q, index) => {
+          if(q.score>=5){
+    tot_score+=1;
+          }
+});
+let scoreHTML = "<br>";
+data.evaluation.forEach((q, index) => {
+    scoreHTML += `Question ${index + 1}: <b>${q.score}/10</b><br>`;
+});
+scoreHTML += `<br>Total Score: <strong><span>${tot_score}</span></strong><br><br>`;
+document.getElementById('scoreDetails').innerHTML = scoreHTML;
+
+
+      } catch (error) {
+        alert('Error uploading file. Please try again.');
+        document.querySelector('.loading-container').style.display = 'none';
+        document.querySelector('.question-container').style.display = 'none';
+        document.querySelector('.upload-container').style.display = 'flex';
+      }
+    }
+  </script>
+
+  <style>
+
+.question-container {
+  margin-top: 20px;
+  background: #fff8e1;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+}
+
+
+#scoreDetails {
+    background: #f1f1f1;
+    padding: 10px;
+    border-radius: 8px;
+    font-family: 'Roboto', sans-serif;
+}
+
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      flex-direction: column;
+    }
+
+    .home-container, .upload-container, .loading-container, .success-container {
+      background: #fff;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      animation: fadeIn 0.5s ease-in-out;
+    }
+
+    h1, h2 {
+      color: #4A00E0;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+
+    button {
+      background: linear-gradient(45deg, #6A82FB, #FC5C7D);
+      color: #fff;
+      border: none;
+      padding: 10px;
+      cursor: pointer;
+      border-radius: 5px;
+      transition: 0.3s ease;
+    }
+
+    button:hover {
+      background: linear-gradient(45deg, #FC5C7D, #6A82FB);
+    }
+
+    .spinner {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #4A00E0;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: auto;
+    }
+
+    .checkmark-animation {
+      font-size: 48px;
+      color: green;
+      animation: popIn 0.6s ease forwards;
+    }
+
+    .score-container {
+      margin-top: 20px;
+      animation: fadeInUp 0.6s ease-in-out;
+    }
+
+    .score-box {
+      background: #f0f9ff;
+      border: 2px solid #4A00E0;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .score-box h2 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    #totalScoreValue {
+      font-size: 36px;
+      font-weight: bold;
+      color: #007f5f;
+      animation: bounceIn 0.6s ease;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes bounceIn {
+      0% { transform: scale(0.5); opacity: 0; }
+      60% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+  </style>
+</body>
+</html>
