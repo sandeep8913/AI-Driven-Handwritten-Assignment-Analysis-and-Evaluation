@@ -2,7 +2,7 @@ import os
 import fitz
 import re
 import pymysql
-from sentence_transformers import SentenceTransformer, CrossEncoder
+from sentence_transformers import SentenceTransformer, CrossEncoder, util
 from sympy import sympify, simplify
 from textblob import TextBlob
 from openpyxl import load_workbook
@@ -13,6 +13,7 @@ os.environ['SENTENCE_TRANSFORMERS_HOME'] = 'C:/ai_cache/sentence_transformers'
 
 # ✅ Load models
 model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+bi_encoder = SentenceTransformer('all-MiniLM-L6-v2')
 cross_encoder = CrossEncoder('cross-encoder/stsb-roberta-large')
 
 def db_connection():
@@ -26,8 +27,7 @@ def evaluate_assignment(student_id, pdf_file):
             full_text += page.get_text()
 
     answers = re.split(r"\?", full_text)
-    print("hi")
-    
+    print("Similarity scores:")
     # Fetch student questions
     student_db = pymysql.connect(host='localhost', user='root', password='', database='students')
     student_cursor = student_db.cursor()
@@ -57,47 +57,69 @@ def evaluate_assignment(student_id, pdf_file):
 
     # Evaluation criteria
     min_length_ratio = 0.6
-    partial_credit_thresholds = [0.85, 0.75, 0.65, 0.55, 0.45]
-    partial_scores = [10, 9, 8, 7, 6]
+    partial_credit_thresholds = [0.9, 0.8, 0.7]
+    partial_scores = [10, 9, 8]
     j = 1
     x_scores=[]
     for i, (q_num, data) in enumerate(question_answers.items(), start=1):
         std_answer = answers[i].strip()
         correct_answer = data['answer']
+        if(i < 5):
+            next_q_num = list(question_answers.keys())[i]  # i is 1-based
+            next_question_text = question_answers[next_q_num]['question']
+            correct_answer += " " + next_question_text  # Append next question text to current answer
+        bi_sim = util.cos_sim(
+            bi_encoder.encode(correct_answer),
+            bi_encoder.encode(std_answer)
+        ).item()
+        cross_sim = cross_encoder.predict([(correct_answer, std_answer)]) 
+        similarity = 0.7 * cross_sim + 0.3 * bi_sim
+        print(similarity)
+        # If similarity is very low (< 0.3), treat it as irrelevant answer
+        if similarity < 0.5:
+            final_score = 2  # Completely wrong or off-topic
+        else:
+            # Length check
+            length_score = 10 if len(std_answer) >= len(correct_answer) * min_length_ratio else 7
 
-        # Semantic similarity
-        similarity = cross_encoder.predict([(correct_answer, std_answer)])
+            # Key point coverage
+            key_points = correct_answer.split(",")
+            covered_points = sum(1 for point in key_points if point.strip().lower() in std_answer.lower())
+            coverage_score = ((covered_points / len(key_points)) * 10) if key_points else 10
 
-        # Length check
-        length_score = 10 if len(std_answer) >= len(correct_answer) * min_length_ratio else 7
+            # Formula correctness
+            try:
+                correct_formula = sympify(correct_answer)
+                student_formula = sympify(std_answer)
+                formula_score = 10 if simplify(correct_formula - student_formula) == 0 else 5
+            except:
+                formula_score = 0  # Set to 0 if not formula-based
 
-        # Key point coverage
-        key_points = correct_answer.split(",")
-        covered_points = sum(1 for point in key_points if point.strip().lower() in std_answer.lower())
-        coverage_score = ((covered_points / len(key_points)) * 10) if key_points else 10
+            # Writing style bonus
+            polarity = TextBlob(std_answer).sentiment.polarity
+            style_bonus = 1 if polarity > 0 else 0
 
-        # Formula correctness
-        try:
-            correct_formula = sympify(correct_answer)
-            student_formula = sympify(std_answer)
-            formula_score = 10 if simplify(correct_formula - student_formula) == 0 else 5
-        except:
-            formula_score = 5
+            # Base semantic score
+            score = round(float(similarity) * 10)
 
-        # Writing style bonus
-        polarity = TextBlob(std_answer).sentiment.polarity
-        style_bonus = 2 if polarity > 0 else 1
+            # Override score if in partial thresholds
+            for threshold, partial_score in zip(partial_credit_thresholds, partial_scores):
+                if similarity >= threshold:
+                    score = partial_score
+                    break
 
-        # Final score calculation
-        score = max(4, round(float(similarity) * 10))
-        for threshold, partial_score in zip(partial_credit_thresholds, partial_scores):
-            if similarity >= threshold:
-                score = partial_score
-                break
+            # Final weighted score
+            final_score = round(
+                (0.75 * score) +
+                (0.1 * length_score) +
+                (0.1 * coverage_score) +
+                (0.05 * formula_score) +
+                style_bonus
+            )
 
-        final_score = round(
-            (0.6 * score) + (0.15 * length_score) + (0.15 * coverage_score) + (0.1 * formula_score) + style_bonus
-        )
+            final_score = max(1, min(10, final_score))  # Clamp between 1–10
+
+
         x_scores.append(final_score)
         final_score
         results.append({
@@ -105,7 +127,7 @@ def evaluate_assignment(student_id, pdf_file):
             'score': final_score
         })
         j += 1
-        if final_score>=5:
+        if final_score>5:
             total_score += 1
 
     print("Total Score:", total_score)
