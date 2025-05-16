@@ -136,9 +136,10 @@
 
         <!-- Hidden div to store flash messages -->
         <div id="flash-data" 
-        data-category="{{ (get_flashed_messages(with_categories=true) | first) if get_flashed_messages() else '' }}"
+     data-category="{{ (get_flashed_messages(with_categories=true) | first)[0] if get_flashed_messages() else '' }}"
+     data-message="{{ (get_flashed_messages(with_categories=true) | first)[1] if get_flashed_messages() else '' }}"
+     style="display: none;"></div>
 
-             style="display: none;"></div>
 
         <footer></footer>
     </div>
